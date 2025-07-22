@@ -159,10 +159,15 @@ async def remind_customers(app):
             print("Error sending reminder:", e)
 
 async def scheduled_reminder(app):
-    await asyncio.sleep(10)
     while True:
+        now = datetime.datetime.now()
+        target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)
+        if now >= target_time:
+            target_time += datetime.timedelta(days=1)
+        wait_seconds = (target_time - now).total_seconds()
+        print(f"Waiting {wait_seconds} seconds until 9 AM")
+        await asyncio.sleep(wait_seconds)
         await remind_customers(app)
-        await asyncio.sleep(86400)  # 24 hours
 
 async def handle_web(request):
     return web.Response(text="Fadi Bot is running ✅")
