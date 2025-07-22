@@ -38,6 +38,15 @@ def save_customers(customers):
     with open(DATA_FILE, "w") as f:
         json.dump(customers, f)
 
+async def welcome_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # ترحيب يظهر للمستخدم أول ما يرسل أي رسالة (قبل /start)
+    # سيتم إرسال رسالة نص وسط الشاشة باستخدام Unicode (مثال)
+    welcome_text = (
+        "✨  مرحباً بك في بوت إدارة العملاء الخاص بنا!  ✨\n\n"
+        "يمكنك استخدام الأزرار بعد الضغط على /start لإضافة، حذف، أو عرض العملاء."
+    )
+    await update.message.reply_text(welcome_text)
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[
         InlineKeyboardButton("➕ Add Customer", callback_data="add_customer"),
@@ -209,6 +218,10 @@ async def main():
     )
 
     app.add_handler(CommandHandler("start", start))
+
+    # إضافة handler للرسالة الترحيبية أول ما يرسل المستخدم أي رسالة نصية
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, welcome_message), group=0)
+
     app.add_handler(conv_handler)
     app.add_handler(CallbackQueryHandler(button_handler, pattern="^paid_"))
     app.add_handler(CallbackQueryHandler(button_handler))
