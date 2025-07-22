@@ -25,6 +25,7 @@ if owner_chat_id_str is None:
 
 CHAT_ID = int(owner_chat_id_str)
 DATA_FILE = "customers.json"
+WELCOME_USERS_FILE = "welcome_users.json"
 
 ADD_CUSTOMER, DELETE_CUSTOMER = range(2)
 
@@ -38,9 +39,24 @@ def save_customers(customers):
     with open(DATA_FILE, "w") as f:
         json.dump(customers, f)
 
+def load_welcome_users():
+    if os.path.exists(WELCOME_USERS_FILE):
+        with open(WELCOME_USERS_FILE, "r") as f:
+            return json.load(f)
+    return []
+
+def save_welcome_users(users):
+    with open(WELCOME_USERS_FILE, "w") as f:
+        json.dump(users, f)
+
 async def welcome_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # ترحيب يظهر للمستخدم أول ما يرسل أي رسالة (قبل /start)
-    # سيتم إرسال رسالة نص وسط الشاشة باستخدام Unicode (مثال)
+    user_id = update.message.from_user.id
+    welcomed_users = load_welcome_users()
+    if user_id in welcomed_users:
+        return
+    welcomed_users.append(user_id)
+    save_welcome_users(welcomed_users)
+
     welcome_text = (
         "✨  مرحباً بك في بوت إدارة العملاء الخاص بنا!  ✨\n\n"
         "يمكنك استخدام الأزرار بعد الضغط على /start لإضافة، حذف، أو عرض العملاء."
@@ -169,7 +185,6 @@ async def remind_customers(app):
 
 async def scheduled_reminder(app):
     while True:
-        # حساب الوقت الحالي بتوقيت لبنان UTC+3
         now = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
         target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)
         if now >= target_time:
@@ -193,7 +208,6 @@ async def run_web_server():
     await site.start()
 
 async def main():
-    # ✅ حماية: تأكد أن البوت لا يعمل إلا على Render
     if os.environ.get("RENDER") != "true":
         raise RuntimeError("⛔️ لا تشغل البوت يدويًا! هو يعمل تلقائيًا على Render فقط.")
 
@@ -218,10 +232,7 @@ async def main():
     )
 
     app.add_handler(CommandHandler("start", start))
-
-    # إضافة handler للرسالة الترحيبية أول ما يرسل المستخدم أي رسالة نصية
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, welcome_message), group=0)
-
     app.add_handler(conv_handler)
     app.add_handler(CallbackQueryHandler(button_handler, pattern="^paid_"))
     app.add_handler(CallbackQueryHandler(button_handler))
