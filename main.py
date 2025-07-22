@@ -183,6 +183,10 @@ async def run_web_server():
     await site.start()
 
 async def main():
+    # ✅ حماية: تأكد أن البوت لا يعمل إلا على Render
+    if os.environ.get("RENDER") != "true":
+        raise RuntimeError("⛔️ لا تشغل البوت يدويًا! هو يعمل تلقائيًا على Render فقط.")
+
     asyncio.create_task(run_web_server())
 
     app = ApplicationBuilder().token(TOKEN).build()
