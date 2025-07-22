@@ -160,12 +160,13 @@ async def remind_customers(app):
 
 async def scheduled_reminder(app):
     while True:
-        now = datetime.datetime.now()
+        # حساب الوقت الحالي بتوقيت لبنان UTC+3
+        now = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
         target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)
         if now >= target_time:
             target_time += datetime.timedelta(days=1)
         wait_seconds = (target_time - now).total_seconds()
-        print(f"Waiting {wait_seconds} seconds until 9 AM")
+        print(f"Waiting {wait_seconds} seconds until 9 AM Lebanon time")
         await asyncio.sleep(wait_seconds)
         await remind_customers(app)
 
