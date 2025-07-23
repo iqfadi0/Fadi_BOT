@@ -6,48 +6,48 @@ import datetime
 import asyncio
 import os
 import logging
+import pytz
 from aiohttp import web
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, ContextTypes,
-    CallbackQueryHandler, ConversationHandler, MessageHandler, filters
+    CallbackQueryHandler, MessageHandler, filters
 )
 
 logging.basicConfig(level=logging.INFO)
 
 TOKEN = os.getenv("BOT_TOKEN")
-owner_chat_id_str = os.getenv("OWNER_CHAT_ID")
-
-if TOKEN is None:
-    raise ValueError("Environment variable BOT_TOKEN is not set!")
-if owner_chat_id_str is None:
-    raise ValueError("Environment variable OWNER_CHAT_ID is not set!")
-
-CHAT_ID = int(owner_chat_id_str)
-DATA_FILE = "customers.json"
-
-ADD_CUSTOMER, DELETE_CUSTOMER = range(2)
+OWNER_CHAT_ID = os.getenv("OWNER_CHAT_ID")
 
 def load_customers():
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r") as f:
+    try:
+        with open("customers.json", "r") as f:
             return json.load(f)
-    return {}
+    except FileNotFoundError:
+        return {}
 
 def save_customers(customers):
-    with open(DATA_FILE, "w") as f:
-        json.dump(customers, f)
+    with open("customers.json", "w") as f:
+        json.dump(customers, f, indent=2)
+
+async def send_temporary_message(chat, text, delay=3):
+    """Send a message then delete it after `delay` seconds."""
+    msg = await chat.send_message(text)
+    await asyncio.sleep(delay)
+    try:
+        await msg.delete()
+    except Exception:
+        pass
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [[
+    buttons = [[
         InlineKeyboardButton("➕ Add Customer", callback_data="add_customer"),
         InlineKeyboardButton("🗑️ Delete Customer", callback_data="delete_customer"),
         InlineKeyboardButton("📋 Show Customers", callback_data="show_customers")
     ]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
         "Welcome to the Customer Management Bot! Use the buttons below to manage customers.",
-        reply_markup=reply_markup
+        reply_markup=InlineKeyboardMarkup(buttons)
     )
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -56,11 +56,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
 
     if data == "add_customer":
-        await query.message.reply_text("Please type the name of the new customer:")
+        await send_temporary_message(query.message.chat, "Please type the name of the new customer:")
         return ADD_CUSTOMER
 
     elif data == "delete_customer":
-        await query.message.reply_text("Please type the name of the customer to delete:")
+        await send_temporary_message(query.message.chat, "Please type the name of the customer to delete:")
         return DELETE_CUSTOMER
 
     elif data == "show_customers":
@@ -99,13 +99,13 @@ async def receive_customer_name(update: Update, context: ContextTypes.DEFAULT_TY
     customers = load_customers()
 
     if name in customers:
-        await update.message.reply_text(f"Customer {name} already exists.")
+        await send_temporary_message(update.message.chat, f"Customer {name} already exists.")
         return ConversationHandler.END
 
     today = datetime.date.today().isoformat()
     customers[name] = {"join_date": today, "paid": False}
     save_customers(customers)
-    await update.message.reply_text(f"✅ Customer {name} added successfully.")
+    await send_temporary_message(update.message.chat, f"✅ Customer {name} added successfully.")
     await send_customers_list(update)
     return ConversationHandler.END
 
@@ -114,12 +114,12 @@ async def receive_delete_name(update: Update, context: ContextTypes.DEFAULT_TYPE
     customers = load_customers()
 
     if name not in customers:
-        await update.message.reply_text(f"Customer {name} does not exist.")
+        await send_temporary_message(update.message.chat, f"Customer {name} does not exist.")
         return ConversationHandler.END
 
     del customers[name]
     save_customers(customers)
-    await update.message.reply_text(f"❌ Customer {name} deleted.")
+    await send_temporary_message(update.message.chat, f"❌ Customer {name} deleted.")
     await send_customers_list(update)
     return ConversationHandler.END
 
@@ -162,18 +162,18 @@ async def remind_customers(app):
     if to_remind:
         try:
             text = "🔔 Reminder: The following customers have not paid yet:\n" + "\n".join(to_remind)
-            await app.bot.send_message(CHAT_ID, text)
+            await app.bot.send_message(chat_id=int(OWNER_CHAT_ID), text=text)
         except Exception as e:
-            print("Error sending reminder:", e)
+            logging.error(f"Error sending reminder: {e}")
 
 async def scheduled_reminder(app):
     while True:
-        now = datetime.datetime.now()
+        now = datetime.datetime.now(pytz.timezone('Asia/Beirut'))
         target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)
         if now >= target_time:
             target_time += datetime.timedelta(days=1)
         wait_seconds = (target_time - now).total_seconds()
-        print(f"Waiting {wait_seconds} seconds until 9 AM")
+        logging.info(f"Waiting {wait_seconds} seconds until 9 AM Beirut time")
         await asyncio.sleep(wait_seconds)
         await remind_customers(app)
 
@@ -182,13 +182,15 @@ async def handle_web(request):
 
 async def run_web_server():
     port = int(os.environ.get("PORT", 8080))
-    print(f"Starting web server on port {port} ...")
+    logging.info(f"Starting web server on port {port} ...")
     app = web.Application()
     app.router.add_get("/", handle_web)
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
+
+ADD_CUSTOMER, DELETE_CUSTOMER = range(2)
 
 async def main():
     if os.environ.get("RENDER") != "true":
@@ -221,7 +223,7 @@ async def main():
 
     asyncio.create_task(scheduled_reminder(app))
 
-    print("Bot is running...")
+    logging.info("Bot is running...")
     await app.run_polling()
 
 if __name__ == "__main__":
