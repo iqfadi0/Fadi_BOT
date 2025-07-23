@@ -66,18 +66,18 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "show_customers":
         customers = load_customers()
         if not customers:
-            await query.message.reply_text("No customers currently.")
+            await query.message.reply_text("No customers found.")
             return ConversationHandler.END
 
-        text = "📋 قائمة الزبائن:\n\n"
+        text = "📋 Customers List:\n\n"
         for name, info in customers.items():
-            status = "✅ دافع" if info["paid"] else "❌ لم يدفع"
-            text += f"{name} (تاريخ الإضافة: {info['join_date']}) - {status}\n"
+            status = "✅ Paid" if info["paid"] else "❌ Not Paid"
+            text += f"{name} (Joined: {info['join_date']}) - {status}\n"
         keyboard = []
         for name, info in customers.items():
             if not info["paid"]:
                 keyboard.append([
-                    InlineKeyboardButton(f"✅ تأكيد الدفع لـ {name}",
+                    InlineKeyboardButton(f"✅ Confirm Payment for {name}",
                                          callback_data=f"paid_{name}")
                 ])
         reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
@@ -90,7 +90,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if name in customers and not customers[name]["paid"]:
             customers[name]["paid"] = True
             save_customers(customers)
-            await query.edit_message_text(f"✅ تم تسجيل الدفع للزبون: {name}")
+            await query.edit_message_text(f"✅ Payment recorded for customer: {name}")
             await send_customers_list(update)
         return ConversationHandler.END
 
@@ -105,7 +105,7 @@ async def receive_customer_name(update: Update, context: ContextTypes.DEFAULT_TY
     today = datetime.date.today().isoformat()
     customers[name] = {"join_date": today, "paid": False}
     save_customers(customers)
-    await update.message.reply_text(f"✅ تم إضافة الزبون {name} بنجاح.")
+    await update.message.reply_text(f"✅ Customer {name} added successfully.")
     await send_customers_list(update)
     return ConversationHandler.END
 
@@ -119,25 +119,25 @@ async def receive_delete_name(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     del customers[name]
     save_customers(customers)
-    await update.message.reply_text(f"❌ تم حذف الزبون {name}.")
+    await update.message.reply_text(f"❌ Customer {name} deleted.")
     await send_customers_list(update)
     return ConversationHandler.END
 
 async def send_customers_list(update: Update):
     customers = load_customers()
     if not customers:
-        await update.message.reply_text("No customers currently.")
+        await update.message.reply_text("No customers found.")
         return
 
-    text = "📋 قائمة الزبائن:\n\n"
+    text = "📋 Customers List:\n\n"
     keyboard = []
 
     for name, info in customers.items():
-        status = "✅ دافع" if info["paid"] else "❌ لم يدفع"
-        text += f"{name} (تاريخ الإضافة: {info['join_date']}) - {status}\n"
+        status = "✅ Paid" if info["paid"] else "❌ Not Paid"
+        text += f"{name} (Joined: {info['join_date']}) - {status}\n"
         if not info["paid"]:
             keyboard.append([
-                InlineKeyboardButton(f"✅ تأكيد الدفع لـ {name}",
+                InlineKeyboardButton(f"✅ Confirm Payment for {name}",
                                      callback_data=f"paid_{name}")
             ])
 
@@ -161,7 +161,7 @@ async def remind_customers(app):
 
     if to_remind:
         try:
-            text = "🔔 تذكير: الزبائن التالية لم يدفعوا بعد:\n" + "\n".join(to_remind)
+            text = "🔔 Reminder: The following customers have not paid yet:\n" + "\n".join(to_remind)
             await app.bot.send_message(CHAT_ID, text)
         except Exception as e:
             print("Error sending reminder:", e)
@@ -192,7 +192,7 @@ async def run_web_server():
 
 async def main():
     if os.environ.get("RENDER") != "true":
-        raise RuntimeError("⛔️ لا تشغل البوت يدويًا! هو يعمل تلقائيًا على Render فقط.")
+        raise RuntimeError("⛔️ Do not run this bot manually! It is designed to run automatically on Render.")
 
     asyncio.create_task(run_web_server())
 
