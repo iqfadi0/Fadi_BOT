@@ -64,7 +64,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "show_customers":
         customers = load_customers()
         if not customers:
-            await query.message.reply_text("No customers found.")
+            await send_temporary_message(query.message.chat, "No customers found.")
             return ConversationHandler.END
 
         sorted_customers = dict(sorted(customers.items(), key=lambda x: x[0].lower()))
@@ -125,7 +125,8 @@ async def receive_delete_name(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def send_customers_list(update: Update):
     customers = load_customers()
     if not customers:
-        await update.message.reply_text("No customers found.")
+        chat = update.message.chat if update.message else update.callback_query.message.chat
+        await send_temporary_message(chat, "No customers found.")
         return
 
     sorted_customers = dict(sorted(customers.items(), key=lambda x: x[0].lower()))
