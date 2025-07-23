@@ -69,11 +69,19 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.reply_text("No customers currently.")
             return ConversationHandler.END
 
-        text = "Customers List:\n\n"
+        text = "📋 قائمة الزبائن:\n\n"
         for name, info in customers.items():
-            status = "✅ Paid" if info["paid"] else "❌ Not Paid"
-            text += f"{name} (Added on: {info['join_date']}) - {status}\n"
-        await query.message.reply_text(text)
+            status = "✅ دافع" if info["paid"] else "❌ لم يدفع"
+            text += f"{name} (تاريخ الإضافة: {info['join_date']}) - {status}\n"
+        keyboard = []
+        for name, info in customers.items():
+            if not info["paid"]:
+                keyboard.append([
+                    InlineKeyboardButton(f"✅ تأكيد الدفع لـ {name}",
+                                         callback_data=f"paid_{name}")
+                ])
+        reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
+        await query.message.reply_text(text, reply_markup=reply_markup)
         return ConversationHandler.END
 
     elif data.startswith("paid_"):
@@ -82,7 +90,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if name in customers and not customers[name]["paid"]:
             customers[name]["paid"] = True
             save_customers(customers)
-            await query.edit_message_text(f"Payment recorded for customer: {name}")
+            await query.edit_message_text(f"✅ تم تسجيل الدفع للزبون: {name}")
             await send_customers_list(update)
         return ConversationHandler.END
 
@@ -97,7 +105,7 @@ async def receive_customer_name(update: Update, context: ContextTypes.DEFAULT_TY
     today = datetime.date.today().isoformat()
     customers[name] = {"join_date": today, "paid": False}
     save_customers(customers)
-    await update.message.reply_text(f"Customer {name} added successfully.")
+    await update.message.reply_text(f"✅ تم إضافة الزبون {name} بنجاح.")
     await send_customers_list(update)
     return ConversationHandler.END
 
@@ -111,7 +119,7 @@ async def receive_delete_name(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     del customers[name]
     save_customers(customers)
-    await update.message.reply_text(f"Customer {name} has been deleted.")
+    await update.message.reply_text(f"❌ تم حذف الزبون {name}.")
     await send_customers_list(update)
     return ConversationHandler.END
 
@@ -121,15 +129,15 @@ async def send_customers_list(update: Update):
         await update.message.reply_text("No customers currently.")
         return
 
-    text = "Customers List:\n\n"
+    text = "📋 قائمة الزبائن:\n\n"
     keyboard = []
 
     for name, info in customers.items():
-        status = "✅ Paid" if info["paid"] else "❌ Not Paid"
-        text += f"{name} (Added on: {info['join_date']}) - {status}\n"
+        status = "✅ دافع" if info["paid"] else "❌ لم يدفع"
+        text += f"{name} (تاريخ الإضافة: {info['join_date']}) - {status}\n"
         if not info["paid"]:
             keyboard.append([
-                InlineKeyboardButton(f"Mark Paid: {name}",
+                InlineKeyboardButton(f"✅ تأكيد الدفع لـ {name}",
                                      callback_data=f"paid_{name}")
             ])
 
@@ -153,7 +161,7 @@ async def remind_customers(app):
 
     if to_remind:
         try:
-            text = "Reminder: The following customers have not paid:\n" + "\n".join(to_remind)
+            text = "🔔 تذكير: الزبائن التالية لم يدفعوا بعد:\n" + "\n".join(to_remind)
             await app.bot.send_message(CHAT_ID, text)
         except Exception as e:
             print("Error sending reminder:", e)
@@ -183,7 +191,6 @@ async def run_web_server():
     await site.start()
 
 async def main():
-    # ✅ حماية: تأكد أن البوت لا يعمل إلا على Render
     if os.environ.get("RENDER") != "true":
         raise RuntimeError("⛔️ لا تشغل البوت يدويًا! هو يعمل تلقائيًا على Render فقط.")
 
