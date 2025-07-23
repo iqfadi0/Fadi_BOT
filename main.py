@@ -6,12 +6,11 @@ import datetime
 import asyncio
 import os
 import logging
-import pytz
 from aiohttp import web
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, ContextTypes,
-    CallbackQueryHandler, MessageHandler, filters
+    CallbackQueryHandler, MessageHandler, filters, ConversationHandler
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -31,7 +30,6 @@ def save_customers(customers):
         json.dump(customers, f, indent=2)
 
 async def send_temporary_message(chat, text, delay=3):
-    """Send a message then delete it after `delay` seconds."""
     msg = await chat.send_message(text)
     await asyncio.sleep(delay)
     try:
@@ -168,7 +166,8 @@ async def remind_customers(app):
 
 async def scheduled_reminder(app):
     while True:
-        now = datetime.datetime.now(pytz.timezone('Asia/Beirut'))
+        now_utc = datetime.datetime.utcnow()
+        now = now_utc + datetime.timedelta(hours=3)  # Beirut is UTC+3
         target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)
         if now >= target_time:
             target_time += datetime.timedelta(days=1)
