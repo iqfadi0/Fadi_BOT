@@ -67,12 +67,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.reply_text("No customers found.")
             return ConversationHandler.END
 
+        sorted_customers = dict(sorted(customers.items(), key=lambda x: x[0].lower()))
+
         text = "📋 Customers List:\n\n"
-        for name, info in customers.items():
+        keyboard = []
+        for name, info in sorted_customers.items():
             status = "✅ Paid" if info["paid"] else "❌ Not Paid"
             text += f"{name} (Joined: {info['join_date']}) - {status}\n"
-        keyboard = []
-        for name, info in customers.items():
             if not info["paid"]:
                 keyboard.append([
                     InlineKeyboardButton(f"✅ Confirm Payment for {name}",
@@ -127,10 +128,12 @@ async def send_customers_list(update: Update):
         await update.message.reply_text("No customers found.")
         return
 
+    sorted_customers = dict(sorted(customers.items(), key=lambda x: x[0].lower()))
+
     text = "📋 Customers List:\n\n"
     keyboard = []
 
-    for name, info in customers.items():
+    for name, info in sorted_customers.items():
         status = "✅ Paid" if info["paid"] else "❌ Not Paid"
         text += f"{name} (Joined: {info['join_date']}) - {status}\n"
         if not info["paid"]:
